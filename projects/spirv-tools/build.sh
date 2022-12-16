@@ -32,6 +32,25 @@ fi
 cmake -G Ninja .. ${CMAKE_ARGS}
 ninja
 
+# Create a small script to get the full history of SPIRV-Tools and reproduce the build quickly.
+F=$OUT/makeit.sh
+cat <<EOF >$F
+  mkdir -p $PWD/..
+  cd $PWD/..
+  [ -f .git/shallow ] && git fetch --unshallow
+  [ -d external/spirv-headers ] || git clone https://github.com/KhronosGroup/SPIRV-Headers external/spirv-headers --depth=1
+  [ -d external/protouf      ] || git clone https://github.com/protocolbuffers/protobuf   external/protobuf      --branch v3.13.0.1
+  [ -d dawn                  ] || git clone https://dawn.googlesource.com/dawn --depth=1
+
+  mkdir -p $PWD
+  cd $PWD
+  OUT=$OUT
+  LIB_FUZZING_ENGINE=$LIB_FUZZING_ENGINE
+  cmake -G Ninja .. ${CMAKE_ARGS}  -DCMAKE_CXX_FLAGS=-pthread -DCMAKE_EXE_LINKER_FLAGS=-pthread
+  ninja
+  cp test/fuzzers/spvtools*fuzzer $OUT
+EOF
+
 SPIRV_BINARY_FUZZERS="spvtools_binary_parser_fuzzer\
  spvtools_dis_fuzzer\
  spvtools_opt_legalization_fuzzer\
